@@ -29,6 +29,7 @@ CPU_MODEL_GENERAL = STM32F746xx
 INCLUDEDIRS =
 INCLUDEDIRS += ./Inc
 INCLUDEDIRS += ../../../../Drivers/HAL/Inc
+INCLUDEDIRS += ../../../../Drivers/BSP/Inc
 INCLUDEDIRS += ../../../../Drivers/CMSIS/Device/ST/$(CPU_FAMILY)/Include
 INCLUDEDIRS += ../../../../Drivers/CMSIS/Include
 INCLUDEDIRS += ../../Core/Inc

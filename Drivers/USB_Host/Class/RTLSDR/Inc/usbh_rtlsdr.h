@@ -67,6 +67,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbh_core.h"
+#include "stm32746g_discovery.h"
+#include "stm32746g_discovery_lcd.h"
+#include "stm32746g_discovery_sdram.h"
 
 /** @addtogroup USBH_LIB
 * @{
@@ -149,13 +152,22 @@ typedef enum
 }
 RTLSDR_I2CStateTypeDef;
 
+/* Bulk SDR data xfer FSM */
+typedef enum
+{
+  RTLSDR_XFER_START= 0,
+  RTLSDR_XFER_WAIT,
+  RTLSDR_XFER_COMPLETE
+}
+RTLSDR_xferStateTypeDef;
+
 /* Structure for RTLSDR Sample Stream EP */
 typedef struct
 {
   uint8_t              SdrPipe; 
   uint8_t              SdrEp;
-  //uint8_t              buff[8];
   uint16_t             SdrEpSize;
+  uint8_t*             buff;
 }
 RTLSDR_CommItfTypedef ;
 
@@ -217,6 +229,8 @@ typedef struct _RTLSDR_Process
   RTLSDR_ProbeStateTypeDef          probeState;
   RTLSDR_I2CStateTypeDef            i2cState;
   RTLSDR_TunerTypeDef*              tuner;
+  
+  RTLSDR_xferStateTypeDef						xferState;
   
 }
 RTLSDR_HandleTypeDef;

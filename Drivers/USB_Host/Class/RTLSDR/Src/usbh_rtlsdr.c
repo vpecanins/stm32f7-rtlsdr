@@ -189,6 +189,7 @@ static USBH_StatusTypeDef USBH_RTLSDR_InterfaceInit (USBH_HandleTypeDef *phost)
 		RTLSDR_Handle->probeState = RTLSDR_PROBE_E4000;
 		RTLSDR_Handle->i2cState = RTLSDR_I2C_WRITE_WAIT;
 		RTLSDR_Handle->tuner = 0;
+		RTLSDR_Handle->xferState = RTLSDR_XFER_START;
 		  
 		/*Collect the SDR sample stream endpoint address and length*/
 		if(phost->device.CfgDesc.Itf_Desc[interface].Ep_Desc[0].bEndpointAddress & 
@@ -217,6 +218,8 @@ static USBH_StatusTypeDef USBH_RTLSDR_InterfaceInit (USBH_HandleTypeDef *phost)
 						phost->device.speed,
 						USB_EP_TYPE_BULK,
 						RTLSDR_Handle->CommItf.SdrEpSize); 
+						
+		RTLSDR_Handle->CommItf.buff = (uint8_t*)((uint32_t)(LCD_FB_START_ADDRESS + (RK043FN48H_WIDTH * RK043FN48H_HEIGHT * 4)));
 		
 		USBH_LL_SetToggle (phost, RTLSDR_Handle->CommItf.SdrPipe, 0);
 	}
@@ -867,8 +870,44 @@ USBH_StatusTypeDef RTLSDR_probe_tuners(USBH_HandleTypeDef *phost) {
   */
 static USBH_StatusTypeDef USBH_RTLSDR_Process (USBH_HandleTypeDef *phost)
 {
+	USBH_StatusTypeDef rStatus = USBH_FAIL;  
+  USBH_URBStateTypeDef urbStatus = USBH_URB_ERROR;
   //USBH_DbgLog("Enter RTLSDR_Process");
-  return USBH_OK;
+  
+  RTLSDR_HandleTypeDef *RTLSDR_Handle =  
+    (RTLSDR_HandleTypeDef*) phost->pActiveClass->pData; 
+  
+  switch (RTLSDR_Handle->xferState) {
+		case RTLSDR_XFER_START:
+			rStatus = USBH_BulkReceiveData(phost, 
+																			&(RTLSDR_Handle->CommItf.buff[0]), 
+																			RTLSDR_Handle->CommItf.SdrEpSize,
+																			RTLSDR_Handle->CommItf.SdrPipe);
+			
+			RTLSDR_Handle->xferState = RTLSDR_XFER_WAIT;
+		break;
+		
+		case RTLSDR_XFER_WAIT:
+			urbStatus = USBH_LL_GetURBState(phost , RTLSDR_Handle->CommItf.SdrPipe);
+			if (urbStatus == USBH_URB_DONE) {
+				USBH_DbgLog("Xfer complete %d", RTLSDR_Handle->CommItf.buff[0]);
+				rStatus = USBH_OK;
+				RTLSDR_Handle->xferState = RTLSDR_XFER_START;
+			} else if (urbStatus == USBH_URB_ERROR) {
+				USBH_DbgLog("Xfer error");
+				rStatus = USBH_FAIL;
+			} else {
+				USBH_DbgLog("Xfer status: %d", urbStatus);
+			}
+			
+		break;
+		
+		case RTLSDR_XFER_COMPLETE:
+		
+		break;
+	}
+  
+  return rStatus;
 }
 
 /**
