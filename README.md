@@ -53,7 +53,9 @@ than the provided in this repository.
 After cloning the repository in your hard disk, with the STM32F7-Discovery 
 connected to your computer, go to project root directory and type in a terminal:
 
-```make program
+```
+make program
+```
 
 ## Power supply issues
 
@@ -62,10 +64,11 @@ approximately 650mA. This is beyond the limit of current that can be provided by
 port (500mA). Therefore an external 5V power supply must be attached to **JP2**. In addition, the 
 **JP1** jumpers must be set as follows:
 
-*JP1 5Vext*: **ON**
-*JP1 5Vlink*: **OFF**
-*JP1 USB_FS*: **OFF**
-*JP1 USB_HS*: **OFF** 
+- *JP1 5Vext*: **ON**
+- *JP1 5Vlink*: **OFF**
+- *JP1 USB_FS*: **OFF**
+- *JP1 USB_HS*: **OFF** 
+
 
 ## Screenshot
 
