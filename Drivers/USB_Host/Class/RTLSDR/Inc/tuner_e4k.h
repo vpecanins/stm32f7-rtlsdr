@@ -263,10 +263,17 @@ typedef struct {
 	int iff_bw_idx;
 	const struct reg_field *iff_field;
   
+  uint8_t bandSetState;
+  uint8_t tuneFreqState;
+  uint8_t tuneParamsState;
+  
+  struct e4k_pll_params tuneParams;
+  
+  enum e4k_band band;
+	struct e4k_pll_params vco;
 /*	void *i2c_dev;
 	uint8_t i2c_addr;
-	enum e4k_band band;
-	struct e4k_pll_params vco;
+	
 	void *rtl_dev;
 	*/
 } E4K_HandleTypeDef;
