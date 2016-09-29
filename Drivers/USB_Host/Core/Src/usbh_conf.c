@@ -245,7 +245,7 @@ USBH_StatusTypeDef USBH_LL_Init(USBH_HandleTypeDef *phost)
   /* Set the LL driver parameters */
   hhcd.Instance = USB_OTG_HS;
   hhcd.Init.Host_channels = 11; 
-  hhcd.Init.dma_enable = 0;
+  hhcd.Init.dma_enable = 0; /* vpecanins line */
   hhcd.Init.low_power_enable = 0;
   hhcd.Init.phy_itface = HCD_PHY_ULPI;
   hhcd.Init.Sof_enable = 0;

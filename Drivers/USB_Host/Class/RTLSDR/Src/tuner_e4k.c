@@ -1080,8 +1080,8 @@ USBH_StatusTypeDef E4K_InitProcess(USBH_HandleTypeDef *phost) {
 	      case 30: uStatus = E4K_reg_set_mask(phost, E4K_REG_DCTIME1, 0x03, 0); break;
 	      case 31: uStatus = E4K_reg_set_mask(phost, E4K_REG_DCTIME2, 0x03, 0); break;
 				
-				/* Tune some frequency */
-				case 32: uStatus = E4K_tune_freq(phost, MHZ(100)); break;
+	      /* Tune some frequency */
+	      case 32: uStatus = E4K_tune_freq(phost, MHZ(100)); break;
         default:
     
         break;
@@ -1113,6 +1113,7 @@ USBH_StatusTypeDef E4K_InitProcess(USBH_HandleTypeDef *phost) {
     
     /* Configuration complete, give back control to ClassRequest process */
     case E4K_REQ_COMPLETE:
+	  USBH_DbgLog("E4K Init Complete");
       E4K_Handle->initState = E4K_REQ_RUN;
       retStatus = USBH_OK;
     break;

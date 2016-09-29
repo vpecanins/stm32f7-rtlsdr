@@ -233,6 +233,8 @@ typedef struct _RTLSDR_Process
   uint32_t real_rsamp_ratio;
   double real_rate;
   
+  uint16_t xferWaitNo;
+  
   RTLSDR_ProbeStateTypeDef          probeState;
   RTLSDR_I2CStateTypeDef            i2cState;
   RTLSDR_TunerTypeDef*              tuner;

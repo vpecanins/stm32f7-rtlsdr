@@ -870,7 +870,7 @@ static USBH_StatusTypeDef USBH_RTLSDR_ClassRequest (USBH_HandleTypeDef *phost)
 			case 30: uStatus = RTLSDR_set_sample_rate(phost, 240000); break;
 			
 			/* Set test mode */
-			case 31: uStatus = RTLSDR_set_test_mode(phost, 0); break;
+			case 31: uStatus = RTLSDR_set_test_mode(phost, 1); break;
 			
 			/* Reset RTL2832 buffer,mandatory (1) */
 			case 32: uStatus = RTLSDR_write_reg(phost, USBB, USB_EPA_CTL, 0x1002, 2); break;
@@ -878,17 +878,6 @@ static USBH_StatusTypeDef USBH_RTLSDR_ClassRequest (USBH_HandleTypeDef *phost)
 			/* Reset RTL2832 buffer,mandatory (2) */
 			case 33: uStatus = RTLSDR_write_reg(phost, USBB, USB_EPA_CTL, 0x0000, 2); break;
 				
-				/*USBH_ClosePipe (phost, RTLSDR_Handle->CommItf.SdrPipe);
-				USBH_OpenPipe  (phost,
-								RTLSDR_Handle->CommItf.SdrPipe,
-								RTLSDR_Handle->CommItf.SdrEp,                            
-								phost->device.address,
-								phost->device.speed,
-								USB_EP_TYPE_BULK,
-								RTLSDR_Handle->CommItf.SdrEpSize);
-								
-				uStatus = USBH_OK;
-			break;*/
 		}
       
 	if (uStatus == USBH_OK) {
@@ -919,6 +908,7 @@ static USBH_StatusTypeDef USBH_RTLSDR_ClassRequest (USBH_HandleTypeDef *phost)
     
     /* Configuration complete, proceed to class active */
     case RTLSDR_REQ_COMPLETE:
+      USBH_DbgLog("RTLSDR Init Complete");
       RTLSDR_Handle->reqState = RTLSDR_REQ_STARTWAIT;
       rStatus = USBH_OK;
     break;
@@ -1050,23 +1040,25 @@ static USBH_StatusTypeDef USBH_RTLSDR_Process (USBH_HandleTypeDef *phost)
 		case RTLSDR_XFER_START:
 			rStatus = USBH_BulkReceiveData(phost, 
 																			&(RTLSDR_Handle->CommItf.buff[0]), 
-																			RTLSDR_Handle->CommItf.SdrEpSize,
+																			RTLSDR_Handle->CommItf.SdrEpSize*64,
 																			RTLSDR_Handle->CommItf.SdrPipe);
 			
 			RTLSDR_Handle->xferState = RTLSDR_XFER_WAIT;
+			RTLSDR_Handle->xferWaitNo=0;
 		break;
 		
 		case RTLSDR_XFER_WAIT:
+			RTLSDR_Handle->xferWaitNo++;
 			urbStatus = USBH_LL_GetURBState(phost , RTLSDR_Handle->CommItf.SdrPipe);
 			if (urbStatus == USBH_URB_DONE) {
-				USBH_DbgLog("Xfer complete %02X %02X", RTLSDR_Handle->CommItf.buff[0], RTLSDR_Handle->CommItf.buff[1]);
+				//USBH_DbgLog("Xfer complete %02X %02X", RTLSDR_Handle->CommItf.buff[0], RTLSDR_Handle->CommItf.buff[1]);
+				USBH_DbgLog("Xfer complete %d", RTLSDR_Handle->xferWaitNo);
 				rStatus = USBH_OK;
 				RTLSDR_Handle->xferState = RTLSDR_XFER_START;
 			} else if (urbStatus == USBH_URB_ERROR) {
 				USBH_DbgLog("Xfer error");
 				rStatus = USBH_FAIL;
-			} 
-			
+			}			
 		break;
 		
 		case RTLSDR_XFER_COMPLETE:

@@ -163,5 +163,15 @@ void OTG_HS_IRQHandler(void)
   HAL_HCD_IRQHandler(&hhcd);
 }
 
+/**
+  * @brief  This function handles EXTI0_IRQ Handler.
+  * @param  None
+  * @retval None
+  */
+void EXTI15_10_IRQHandler(void)
+{
+  HAL_GPIO_EXTI_IRQHandler(WAKEUP_BUTTON_PIN);
+}
+
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

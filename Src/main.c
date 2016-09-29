@@ -20,6 +20,7 @@
 /* Private variables ---------------------------------------------------------*/
 USBH_HandleTypeDef hUSBHost;
 
+uint8_t currentScreen=0;
 
 /* Private function prototypes -----------------------------------------------*/
 static void SystemClock_Config(void);
@@ -90,16 +91,31 @@ static void RTLSDR_InitApplication(void)
   BSP_LCD_Init();
   
   /* LCD Layer Initialization */
-  BSP_LCD_LayerDefaultInit(1, LCD_FB_START_ADDRESS); 
+  BSP_LCD_LayerDefaultInit(0, LCD_FB_START_ADDRESS); 
   
   /* Select the LCD Layer */
+  BSP_LCD_SelectLayer(0);
+  BSP_LCD_SetTransparency(0, 0xFF);
+  
+  /* Other layer*/
+  BSP_LCD_LayerDefaultInit(1, ((uint32_t)(LCD_FB_START_ADDRESS + (RK043FN48H_WIDTH * RK043FN48H_HEIGHT * 4)))); 
   BSP_LCD_SelectLayer(1);
+  BSP_LCD_SetTransparency(1, 0x00);
+  
+  BSP_LCD_Clear(LCD_COLOR_TRANSPARENT);
+  BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+  BSP_LCD_DrawCircle(BSP_LCD_GetXSize()/2, BSP_LCD_GetYSize()/2, 10);
+  
+  BSP_LCD_SelectLayer(0);
   
   /* Enable the display */
   BSP_LCD_DisplayOn();
   
   /* Initialize the LCD Log module */
   LCD_LOG_Init();
+  
+  /* Configure Button pin as input with External interrupt */
+  BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_EXTI);
   
 #ifdef USE_USB_HS 
   //LCD_LOG_SetHeader((uint8_t *)" USB OTG HS RTLSDR Host");
@@ -113,6 +129,27 @@ static void RTLSDR_InitApplication(void)
   /* Start RTLSDR Interface */
   USBH_UsrLog("Starting RTLSDR Demo");
   
+}
+
+/**
+  * @brief EXTI line detection callbacks
+  * @param GPIO_Pin: Specifies the pins connected EXTI line
+  * @retval None
+  */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  if(GPIO_Pin==WAKEUP_BUTTON_PIN)
+  {
+    if (currentScreen==0) {
+		BSP_LCD_SetTransparency(0, 0xFF);
+		BSP_LCD_SetTransparency(1, 0x00);
+		currentScreen=1;
+	} else {
+		BSP_LCD_SetTransparency(1, 0xFF);
+		BSP_LCD_SetTransparency(0, 0x00);
+		currentScreen=0;
+	}
+  }
 }
 
 /**
