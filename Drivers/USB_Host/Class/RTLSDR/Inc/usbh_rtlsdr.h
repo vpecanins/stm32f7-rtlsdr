@@ -178,6 +178,7 @@ typedef struct
   const char          *Name; 
   USBH_StatusTypeDef  (*Init)         (struct _USBH_HandleTypeDef *phost);
   USBH_StatusTypeDef  (*InitProcess)  (struct _USBH_HandleTypeDef *phost);
+  USBH_StatusTypeDef  (*SetBW)        (struct _USBH_HandleTypeDef *phost);
   /*USBH_StatusTypeDef  (*DeInit)       (struct _USBH_HandleTypeDef *phost);
   USBH_StatusTypeDef  (*Requests)     (struct _USBH_HandleTypeDef *phost);  
   USBH_StatusTypeDef  (*BgndProcess)  (struct _USBH_HandleTypeDef *phost);
@@ -209,22 +210,28 @@ typedef struct _RTLSDR_Process
   /* FIR */
   RTLSDR_FirStateTypeDef            firState;
   uint8_t                           firNumber;
-  uint8_t 							fir[20];
+  uint8_t 													fir[20];
   
   /* RTL2830 raw read and write*/
-  uint16_t                          regWriteIndex;
-  uint8_t							regWriteData[4];
-  uint16_t                          arrReadIndex;
-  uint16_t                          arrWriteIndex;
+  uint16_t            							regWriteIndex;
+  uint8_t														regWriteData[4];
+  uint16_t           								arrReadIndex;
+  uint16_t            							arrWriteIndex;
   
   /* RTL2830 I2C read and write */
-  uint16_t                          i2cWriteAddress;
+  uint16_t            i2cWriteAddress;
   uint8_t							i2cWriteData[4];
   
-  uint16_t                          i2cReadAddress;
+  uint16_t            i2cReadAddress;
   uint8_t							i2cReadReg;
   uint8_t							i2cReadVal;
   uint8_t							i2cReadData[4]; /* See Note */
+  
+  uint32_t						bw;
+  uint8_t setSampleRateState;
+  uint32_t rsamp_ratio;
+  uint32_t real_rsamp_ratio;
+  double real_rate;
   
   RTLSDR_ProbeStateTypeDef          probeState;
   RTLSDR_I2CStateTypeDef            i2cState;

@@ -102,6 +102,10 @@
 /** @defgroup USBH_RTLSDR_CORE_Private_Macros
 * @{
 */ 
+
+/* two raised to the power of n */
+#define TWO_POW(n)		((double)(1ULL<<(n)))
+
 /**
 * @}
 */ 
@@ -190,6 +194,7 @@ static USBH_StatusTypeDef USBH_RTLSDR_InterfaceInit (USBH_HandleTypeDef *phost)
 		RTLSDR_Handle->i2cState = RTLSDR_I2C_WRITE_WAIT;
 		RTLSDR_Handle->tuner = 0;
 		RTLSDR_Handle->xferState = RTLSDR_XFER_START;
+		RTLSDR_Handle->setSampleRateState=0;
 		  
 		/*Collect the SDR sample stream endpoint address and length*/
 		if(phost->device.CfgDesc.Itf_Desc[interface].Ep_Desc[0].bEndpointAddress & 
@@ -626,6 +631,146 @@ static void USBH_Wdt1(int s) {
   usbh_wdt1_s = s;
 }
 
+USBH_StatusTypeDef RTLSDR_set_test_mode(USBH_HandleTypeDef *phost, uint8_t on) {
+	return RTLSDR_demod_write_reg(phost, 0, 0x19, on ? 0x03 : 0x05, 1);
+}
+
+USBH_StatusTypeDef RTLSDR_set_sample_rate (USBH_HandleTypeDef *phost, uint32_t samp_rate)
+{   
+  USBH_StatusTypeDef rStatus = USBH_FAIL;  
+  USBH_StatusTypeDef uStatus = USBH_FAIL;
+  
+	RTLSDR_HandleTypeDef *RTLSDR_Handle =  
+    (RTLSDR_HandleTypeDef*) phost->pActiveClass->pData; 
+  
+  switch (RTLSDR_Handle->setSampleRateState) {
+		case 0:
+			/* check if the rate is supported by the resampler */
+			if ((samp_rate <= 225000) || (samp_rate > 3200000) ||
+				 ((samp_rate > 300000) && (samp_rate <= 900000))) {
+				USBH_DbgLog("Invalid sample rate: %lu Hz", samp_rate);
+				rStatus = USBH_FAIL;
+			}
+			
+			RTLSDR_Handle->rsamp_ratio = (DEF_RTL_XTAL_FREQ * TWO_POW(22)) / samp_rate;
+			RTLSDR_Handle->rsamp_ratio &= 0x0ffffffc;
+			RTLSDR_Handle->real_rsamp_ratio = RTLSDR_Handle->rsamp_ratio | 
+				((RTLSDR_Handle->rsamp_ratio & 0x08000000) << 1);
+			
+			RTLSDR_Handle->real_rate = (DEF_RTL_XTAL_FREQ * TWO_POW(22)) / 
+				RTLSDR_Handle->real_rsamp_ratio;
+				
+			if ( ((double)samp_rate) != RTLSDR_Handle->real_rate ) {
+				USBH_DbgLog("Exact sample rate is: %f Hz", RTLSDR_Handle->real_rate);
+				USBH_DbgLog("Rsamp_ratio: %lu Hz", RTLSDR_Handle->rsamp_ratio);
+				USBH_DbgLog("Real_rsamp_ratio: %lu Hz", RTLSDR_Handle->real_rsamp_ratio);
+			}
+			
+			rStatus = USBH_BUSY;
+			RTLSDR_Handle->setSampleRateState++;
+		break;
+		
+		case 1:
+			uStatus = RTLSDR_set_i2c_repeater(phost, 1);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_BUSY;
+				RTLSDR_Handle->setSampleRateState++;
+				RTLSDR_Handle->bw=(uint32_t)RTLSDR_Handle->real_rate; /* TODO: dev->bw > 0 ? dev->bw : dev->rate */
+			} else {
+				rStatus=uStatus;
+			}
+		break;
+		
+		case 2:
+			uStatus = RTLSDR_Handle->tuner->SetBW(phost);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_BUSY;
+				RTLSDR_Handle->setSampleRateState++;
+			} else {
+				rStatus=uStatus;
+			}
+		break;
+		
+		case 3:
+			uStatus = RTLSDR_set_i2c_repeater(phost, 1);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_BUSY;
+				RTLSDR_Handle->setSampleRateState++;
+			} else {
+				rStatus=uStatus;
+			}
+		break;
+		
+		case 4:
+			uStatus = RTLSDR_demod_write_reg(phost, 1, 0x9f, (uint16_t)(RTLSDR_Handle->rsamp_ratio >> 16), 2);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_BUSY;
+				RTLSDR_Handle->setSampleRateState++;
+			} else {
+				rStatus=uStatus;
+			}
+		break;
+		
+		case 5:
+			uStatus = RTLSDR_demod_write_reg(phost, 1, 0xa1, (uint16_t)(RTLSDR_Handle->rsamp_ratio & 0xffff), 2);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_BUSY;
+				RTLSDR_Handle->setSampleRateState++;
+			} else {
+				rStatus=uStatus;
+			}
+		break;
+		
+		/* TODO: Ignored frequency correction (ppm=0) */
+		/* This should be implemented in rtlsdr_set_sample_freq_correction*/
+		case 6:
+			uStatus = RTLSDR_demod_write_reg(phost, 1, 0x3f, 0, 1);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_BUSY;
+				RTLSDR_Handle->setSampleRateState++;
+			} else {
+				rStatus=uStatus;
+			}
+		break;
+		
+		case 7:
+			uStatus = RTLSDR_demod_write_reg(phost, 1, 0x3f, 0, 1);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_BUSY;
+				RTLSDR_Handle->setSampleRateState++;
+			} else {
+				rStatus=uStatus;
+			}
+		break;
+		
+		/* reset demod (bit 3, soft_rst) */
+		case 8:
+			uStatus = RTLSDR_demod_write_reg(phost, 1, 0x01, 0x14, 1);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_BUSY;
+				RTLSDR_Handle->setSampleRateState++;
+			} else {
+				rStatus=uStatus;
+			}
+		break;
+		
+		case 9:
+			uStatus = RTLSDR_demod_write_reg(phost,  1, 0x01, 0x10, 1);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_OK;
+				RTLSDR_Handle->setSampleRateState=0;
+			} else {
+				rStatus=uStatus;
+			}
+		break;
+		
+			/* TODO recalculate offset frequency if offset tuning is enabled */
+	/*if (dev->offs_freq)
+		rtlsdr_set_offset_tuning(dev, 1);*/
+	}
+  return rStatus;
+}
+
 /**
   * @brief  USBH_RTLSDR_ClassRequest 
   *         The function is responsible for handling Standard requests
@@ -720,6 +865,30 @@ static USBH_StatusTypeDef USBH_RTLSDR_ClassRequest (USBH_HandleTypeDef *phost)
 
 			/* Tuner initialization process */
 			case 29: uStatus = RTLSDR_Handle->tuner->InitProcess(phost); break;
+			
+			/* Set sample rate */
+			case 30: uStatus = RTLSDR_set_sample_rate(phost, 240000); break;
+			
+			/* Set test mode */
+			case 31: uStatus = RTLSDR_set_test_mode(phost, 0); break;
+			
+			/* Reset RTL2832 buffer,mandatory (1) */
+			case 32: uStatus = RTLSDR_write_reg(phost, USBB, USB_EPA_CTL, 0x1002, 2); break;
+			
+			/* Reset RTL2832 buffer,mandatory (2) */
+			case 33: uStatus = RTLSDR_write_reg(phost, USBB, USB_EPA_CTL, 0x0000, 2); break;
+				
+				/*USBH_ClosePipe (phost, RTLSDR_Handle->CommItf.SdrPipe);
+				USBH_OpenPipe  (phost,
+								RTLSDR_Handle->CommItf.SdrPipe,
+								RTLSDR_Handle->CommItf.SdrEp,                            
+								phost->device.address,
+								phost->device.speed,
+								USB_EP_TYPE_BULK,
+								RTLSDR_Handle->CommItf.SdrEpSize);
+								
+				uStatus = USBH_OK;
+			break;*/
 		}
       
 	if (uStatus == USBH_OK) {
@@ -738,7 +907,7 @@ static USBH_StatusTypeDef USBH_RTLSDR_ClassRequest (USBH_HandleTypeDef *phost)
     
       //USBH_DbgLog("Completed reqNumber: %d", RTLSDR_Handle->reqNumber);
     
-      if (RTLSDR_Handle->reqNumber == 29) {
+      if (RTLSDR_Handle->reqNumber == 33) {
         RTLSDR_Handle->reqState = RTLSDR_REQ_COMPLETE;
         RTLSDR_Handle->reqNumber = 0;
       } else {
@@ -890,15 +1059,13 @@ static USBH_StatusTypeDef USBH_RTLSDR_Process (USBH_HandleTypeDef *phost)
 		case RTLSDR_XFER_WAIT:
 			urbStatus = USBH_LL_GetURBState(phost , RTLSDR_Handle->CommItf.SdrPipe);
 			if (urbStatus == USBH_URB_DONE) {
-				USBH_DbgLog("Xfer complete %d", RTLSDR_Handle->CommItf.buff[0]);
+				USBH_DbgLog("Xfer complete %02X %02X", RTLSDR_Handle->CommItf.buff[0], RTLSDR_Handle->CommItf.buff[1]);
 				rStatus = USBH_OK;
 				RTLSDR_Handle->xferState = RTLSDR_XFER_START;
 			} else if (urbStatus == USBH_URB_ERROR) {
 				USBH_DbgLog("Xfer error");
 				rStatus = USBH_FAIL;
-			} else {
-				USBH_DbgLog("Xfer status: %d", urbStatus);
-			}
+			} 
 			
 		break;
 		

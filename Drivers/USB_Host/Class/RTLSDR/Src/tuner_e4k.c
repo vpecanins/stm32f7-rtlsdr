@@ -68,6 +68,7 @@ RTLSDR_TunerTypeDef  Tuner_E4K =
   "E4K",
   E4K_Init,
   E4K_InitProcess,
+  E4K_SetBW,
   NULL,
 };
 
@@ -614,6 +615,51 @@ USBH_StatusTypeDef E4K_if_filter_chan_enable(USBH_HandleTypeDef *phost, uint8_t 
 	                        on ? 0 : E4K_FILT3_DISABLE);
 }
 
+USBH_StatusTypeDef E4K_SetBW(USBH_HandleTypeDef *phost) 
+{
+	USBH_StatusTypeDef rStatus = USBH_FAIL;
+	USBH_StatusTypeDef uStatus = USBH_FAIL;
+
+	RTLSDR_HandleTypeDef *RTLSDR_Handle =  
+	(RTLSDR_HandleTypeDef*) phost->pActiveClass->pData;
+
+	E4K_HandleTypeDef * E4K_Handle = 
+	(E4K_HandleTypeDef*) RTLSDR_Handle->tuner->tunerData;
+	
+	switch (E4K_Handle->setBWState) {
+		case 0:
+			uStatus=E4K_if_filter_bw_set(phost, E4K_IF_FILTER_MIX, RTLSDR_Handle->bw);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_BUSY;
+				E4K_Handle->setBWState++;
+			} else {
+				rStatus = uStatus;
+			}
+		break;
+		
+		case 1:
+			uStatus=E4K_if_filter_bw_set(phost, E4K_IF_FILTER_RC, RTLSDR_Handle->bw);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_BUSY;
+				E4K_Handle->setBWState++;
+			} else {
+				rStatus = uStatus;
+			}
+		break;
+		
+		case 2:
+			uStatus=E4K_if_filter_bw_set(phost, E4K_IF_FILTER_CHAN, RTLSDR_Handle->bw);
+			if (uStatus==USBH_OK) {
+				rStatus=USBH_OK;
+				E4K_Handle->setBWState=0;
+			} else {
+				rStatus = uStatus;
+			}
+		break;
+	}
+	return rStatus;
+}
+
 /*
  * Simple prototype
  * 
@@ -932,8 +978,8 @@ USBH_StatusTypeDef E4K_Init(USBH_HandleTypeDef *phost) {
   E4K_Handle->bandSetState=0;
   E4K_Handle->tuneFreqState=0;
   E4K_Handle->tuneParamsState=0;
-  
   E4K_Handle->vco.fosc = DEF_RTL_XTAL_FREQ;
+  E4K_Handle->setBWState=0;
   
   return USBH_OK;
 }

@@ -267,6 +267,8 @@ typedef struct {
   uint8_t tuneFreqState;
   uint8_t tuneParamsState;
   
+  uint8_t setBWState;
+  
   struct e4k_pll_params tuneParams;
   
   enum e4k_band band;
@@ -280,6 +282,7 @@ typedef struct {
 
 USBH_StatusTypeDef E4K_Init(USBH_HandleTypeDef *phost);
 USBH_StatusTypeDef E4K_InitProcess(USBH_HandleTypeDef *phost);
+USBH_StatusTypeDef E4K_SetBW(USBH_HandleTypeDef *phost);
 /*USBH_StatusTypeDef e4k_standby(struct e4k_state *e4k, int enable);
 USBH_StatusTypeDef e4k_if_gain_set(struct e4k_state *e4k, uint8_t stage, int8_t value);
 USBH_StatusTypeDef e4k_mixer_gain_set(struct e4k_state *e4k, int8_t value);
