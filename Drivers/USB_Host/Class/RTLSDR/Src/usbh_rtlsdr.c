@@ -226,7 +226,35 @@ static USBH_StatusTypeDef USBH_RTLSDR_InterfaceInit (USBH_HandleTypeDef *phost)
 						
 		RTLSDR_Handle->CommItf.buff = (uint8_t*)((uint32_t)(LCD_FB_START_ADDRESS + (RK043FN48H_WIDTH * RK043FN48H_HEIGHT * 4)));
 		
+    /* This should be user configurable. It gives expected throughput values from 32..127 *512 */
+    RTLSDR_Handle->CommItf.buffSize = 127*512;
+    
 		USBH_LL_SetToggle (phost, RTLSDR_Handle->CommItf.SdrPipe, 0);
+		
+		/* Timer3 is used for measuring real throughput */
+		__HAL_RCC_TIM3_CLK_ENABLE();
+
+    /* Compute the prescaler value to have TIMx counter clock equal to 10000 Hz */
+    RTLSDR_Handle->uwPrescalerValue = (uint32_t)((SystemCoreClock / 2) / 10000) - 1;
+
+    /* Set TIMx instance */
+    RTLSDR_Handle->TimHandle.Instance = TIM3;
+
+    /* Initialize TIMx peripheral */
+    RTLSDR_Handle->TimHandle.Init.Period            = 10000 - 1;
+    RTLSDR_Handle->TimHandle.Init.Prescaler         = RTLSDR_Handle->uwPrescalerValue;
+    RTLSDR_Handle->TimHandle.Init.ClockDivision     = 0;
+    RTLSDR_Handle->TimHandle.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    RTLSDR_Handle->TimHandle.Init.RepetitionCounter = 0;
+
+    if (HAL_TIM_Base_Init(&(RTLSDR_Handle->TimHandle)) != HAL_OK) {
+      USBH_DbgLog("Unable to init Timer 3");
+    }
+
+    /* Start Channel1 */
+    if (HAL_TIM_Base_Start(&(RTLSDR_Handle->TimHandle)) != HAL_OK) {
+      USBH_DbgLog("Unable to start Timer 3");
+    }
 	}
 	return status;
 }
@@ -867,10 +895,10 @@ static USBH_StatusTypeDef USBH_RTLSDR_ClassRequest (USBH_HandleTypeDef *phost)
 			case 29: uStatus = RTLSDR_Handle->tuner->InitProcess(phost); break;
 			
 			/* Set sample rate */
-			case 30: uStatus = RTLSDR_set_sample_rate(phost, 240000); break;
+			case 30: uStatus = RTLSDR_set_sample_rate(phost, 1200000); break;
 			
 			/* Set test mode */
-			case 31: uStatus = RTLSDR_set_test_mode(phost, 1); break;
+			case 31: uStatus = RTLSDR_set_test_mode(phost, 0); break;
 			
 			/* Reset RTL2832 buffer,mandatory (1) */
 			case 32: uStatus = RTLSDR_write_reg(phost, USBB, USB_EPA_CTL, 0x1002, 2); break;
@@ -1040,11 +1068,12 @@ static USBH_StatusTypeDef USBH_RTLSDR_Process (USBH_HandleTypeDef *phost)
 		case RTLSDR_XFER_START:
 			rStatus = USBH_BulkReceiveData(phost, 
 																			&(RTLSDR_Handle->CommItf.buff[0]), 
-																			RTLSDR_Handle->CommItf.SdrEpSize*64,
+																			RTLSDR_Handle->CommItf.buffSize,
 																			RTLSDR_Handle->CommItf.SdrPipe);
 			
 			RTLSDR_Handle->xferState = RTLSDR_XFER_WAIT;
 			RTLSDR_Handle->xferWaitNo=0;
+			RTLSDR_Handle->TimHandle.Instance->CNT=0;
 		break;
 		
 		case RTLSDR_XFER_WAIT:
@@ -1052,7 +1081,8 @@ static USBH_StatusTypeDef USBH_RTLSDR_Process (USBH_HandleTypeDef *phost)
 			urbStatus = USBH_LL_GetURBState(phost , RTLSDR_Handle->CommItf.SdrPipe);
 			if (urbStatus == USBH_URB_DONE) {
 				//USBH_DbgLog("Xfer complete %02X %02X", RTLSDR_Handle->CommItf.buff[0], RTLSDR_Handle->CommItf.buff[1]);
-				USBH_DbgLog("Xfer complete %d", RTLSDR_Handle->xferWaitNo);
+				USBH_DbgLog("Xfer complete %d kB/s", USBH_LL_GetLastXferSize(phost,RTLSDR_Handle->CommItf.SdrPipe) * 10 / RTLSDR_Handle->TimHandle.Instance->CNT);
+				RTLSDR_Handle->TimHandle.Instance->CNT=0;
 				rStatus = USBH_OK;
 				RTLSDR_Handle->xferState = RTLSDR_XFER_START;
 			} else if (urbStatus == USBH_URB_ERROR) {

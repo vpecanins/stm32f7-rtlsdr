@@ -102,10 +102,12 @@ static void RTLSDR_InitApplication(void)
   BSP_LCD_SelectLayer(1);
   BSP_LCD_SetTransparency(1, 0x00);
   
+  /* Draw a test circle and background to the layer 1 */
   BSP_LCD_Clear(LCD_COLOR_TRANSPARENT);
   BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
   BSP_LCD_DrawCircle(BSP_LCD_GetXSize()/2, BSP_LCD_GetYSize()/2, 10);
   
+  /* Return to layer 0 for putting the console */
   BSP_LCD_SelectLayer(0);
   
   /* Enable the display */
@@ -116,6 +118,7 @@ static void RTLSDR_InitApplication(void)
   
   /* Configure Button pin as input with External interrupt */
   BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_EXTI);
+  
   
 #ifdef USE_USB_HS 
   //LCD_LOG_SetHeader((uint8_t *)" USB OTG HS RTLSDR Host");

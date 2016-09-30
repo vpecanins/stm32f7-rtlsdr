@@ -167,6 +167,7 @@ typedef struct
   uint8_t              SdrPipe; 
   uint8_t              SdrEp;
   uint16_t             SdrEpSize;
+  uint32_t             buffSize;
   uint8_t*             buff;
 }
 RTLSDR_CommItfTypedef ;
@@ -240,6 +241,12 @@ typedef struct _RTLSDR_Process
   RTLSDR_TunerTypeDef*              tuner;
   
   RTLSDR_xferStateTypeDef						xferState;
+  
+  /* TIM3 handle declaration */
+  TIM_HandleTypeDef    TimHandle;
+
+  /* Timer 3 Prescaler declaration */
+  uint32_t uwPrescalerValue;
   
 }
 RTLSDR_HandleTypeDef;
