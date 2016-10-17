@@ -11,10 +11,10 @@ USB Host Middleware in STM32 Cube to implement a custom class.
 
 ## Build system
 
-The build system is based on Makefiles. There is one general Makefile for the
-project root and several dedicated Makefiles for the different components, such
-as HAL, BSP or USB libraries. There is no need to include additional libraries
-than the provided in this repository. 
+The project is developed using the free, Eclipse-based IDE called 
+*System Workbench for STM32* ([SW4STM32](http://www.openstm32.org/HomePage)). 
+To set-up the IDE you should follow the instructions of the site. I used Eclipse
+Neon for C/C++ developers under Ubuntu 16.04.
 
 ## Current status
 
@@ -47,15 +47,6 @@ than the provided in this repository.
 - Linux standard build system (Make)
 - GNU ARM Compiler Toolchain
 - OpenOCD (properly patched for STM32F7)
-
-## Usage
-
-After cloning the repository in your hard disk, with the STM32F7-Discovery 
-connected to your computer, go to project root directory and type in a terminal:
-
-```
-make program
-```
 
 ## Power supply issues
 
